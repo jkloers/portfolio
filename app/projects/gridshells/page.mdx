@@ -1,0 +1,38 @@
+export const metadata = {
+  title: 'Gridshell Optimization',
+  alternates: {
+    canonical: '/projects/gridshells',
+  },
+};
+
+# Gridshells
+
+<Tags items={["Computational Geometry", "Genetic Algorithms", "Circular Design", "Physics Simulation"]} />
+
+## The Premise
+
+The construction industry is structurally committed to permanence — yet most of what it builds will eventually be destroyed. Inspired by ephemeral structures like Burning Man's *Galaxia*, this project asks a different question: what if disassembly were a first-class design constraint? Not an afterthought, but the primary driver of form.
+
+A continuous gridshell is mechanically ideal. It is also logistically impossible to ship. A 30-meter dome cannot travel in a standard container — so the structure must be cut into prefabricated panels. But every cut is a joint, and every joint degrades global stiffness. The design problem is therefore this: how do you discretize a free-form surface into shippable pieces while preserving as much structural integrity as possible?
+
+## The Formulation
+
+I framed this as a combinatorial optimization problem. The continuous geometry is first form-found via dynamic relaxation. A genetic algorithm then operates on a binary genome <InlineMath math="\mathbf{g} \in \{0,1\}^m" />, where <InlineMath math="m" /> is the number of beams and each bit encodes the presence or absence of a joint.
+
+<ProjectImage src="/projects/gridshells/gridshell.jpg" caption="Genome encoding — each bit maps to a beam; the genetic algorithm evolves the joint topology" />
+
+The objective function balances three competing terms:
+
+<BlockMath math="\mathcal{J}(\mathbf{g}) = \alpha \cdot P_\text{fit}(\mathbf{g}) \;+\; \beta \cdot \|\mathbf{g}\|_1 \;-\; \gamma \cdot E_\text{elastic}(\mathbf{g})" />
+
+- <InlineMath math="P_\text{fit}" /> is a penalty for panels exceeding container dimensions, computed via PCA to find the minimal oriented bounding box: <InlineMath math="P_\text{fit}(\mathbf{g}) = \sum_p \max\!\left(0,\, \ell_p^{\max}(\mathbf{g}) - L_c\right)" />
+- <InlineMath math="\|\mathbf{g}\|_1" /> is the total joint count, minimized to reduce assembly time and preserve continuity
+- <InlineMath math="E_\text{elastic}(\mathbf{g})" /> is the elastic energy evaluated on the fly by an embedded physics solver — the algorithm directly feels the structural cost of each topological decision
+
+The search space grows as <InlineMath math="2^m" />, which is combinatorially intractable by brute force. The genetic algorithm navigates it through selection, crossover, and mutation, converging toward discretizations that are simultaneously transportable, efficient to assemble, and structurally sound.
+
+<ProjectImage src="/projects/gridshells/gridshell2.jpg" caption="From continuous shell to container — three-step discretization: joint placement, panel extraction, bounding box validation" />
+
+## The Result
+
+The pipeline transforms an architectural vision into a shippable reality — not by simplifying the geometry, but by finding the cuts that cost the least. It is a tool for circular architecture: proving that the logic of disassembly, when taken seriously enough to be encoded as an optimization target, can be just as generative as the logic of form.

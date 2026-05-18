@@ -1,0 +1,32 @@
+export const metadata = {
+  title: 'Mocap',
+  alternates: {
+    canonical: '/projects/mocap',
+  },
+};
+
+# Mocap
+
+<Tags items={["Max/MSP", "VCV Rack", "RAVE", "Generative Audio", "HNN"]} />
+
+<GitHubLink href="https://github.com/jkloers/mocap" />
+
+## What it is
+
+What if a room full of people dancing could generate music in real time — together, as a collective instrument?
+
+That's the premise. Everyone carries a smartphone. As they move, their phones stream motion data to a server, which feeds a Max/MSP patch, which modulates the control voltages of a modular synthesizer built in VCV Rack. The whole group becomes a single, distributed instrument.
+
+This was built in collaboration with the Center for Robotics and performed during a workshop at Universidad Politécnica de Madrid. One of the most alive projects I've worked on.
+
+## The Pipeline
+
+Phone → server → Max/MSP → Ableton → VCV Rack.
+
+If you're not familiar with modular synthesis: instead of playing notes, you build a circuit of modules — oscillators, filters, envelopes, sequencers — and connect them with virtual cables. Sound is generated and shaped entirely through voltage signals. This makes it ideal for continuous, expressive control driven by body movement.
+
+On top of that, we integrated two additional layers. RAVE — a variational autoencoder trained on a sound corpus — handled real-time timbre generation and transformation. An HNN took care of motion recognition, letting the system distinguish between different types of movement rather than just raw acceleration.
+
+**Storm simulator.** The final version, and the one we performed. I went through acoustic research to understand the physics of thunder and rain — the frequency envelopes of a distant rumble, the stochastic texture of rainfall, the sharp transients of a strike. The collective movement of the room became the storm's conductor: stillness brought silence, density brought rain, synchronized motion could trigger lightning.
+
+<ProjectImage src="/projects/mocap/vcv.png" caption="VCV Rack patch — the modular synthesizer" />

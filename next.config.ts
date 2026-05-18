@@ -9,28 +9,30 @@ export const sql = postgres(process.env.POSTGRES_URL!, {
 const nextConfig: NextConfig = {
   pageExtensions: ['mdx', 'ts', 'tsx'],
   async redirects() {
+    const base = [{ source: '/', destination: '/about', permanent: false }];
+
     if (!process.env.POSTGRES_URL) {
-      return [];
+      return base;
     }
 
-    let redirects = await sql`
+    let dbRedirects = await sql`
       SELECT source, destination, permanent
       FROM redirects;
     `;
 
-    return redirects.map(({ source, destination, permanent }) => ({
-      source,
-      destination,
-      permanent: !!permanent
-    }));
+    return [
+      ...base,
+      ...dbRedirects.map(({ source, destination, permanent }) => ({
+        source,
+        destination,
+        permanent: !!permanent
+      }))
+    ];
   },
-  // Note: Using the Rust compiler means we cannot use
-  // rehype or remark plugins. If you need them, remove
-  // the `experimental.mdxRs` flag.
   experimental: {
     mdxRs: { mdxType: 'gfm' }
   }
- };
+};
 
 const withMDX = createMDX({});
 

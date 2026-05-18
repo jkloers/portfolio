@@ -1,0 +1,32 @@
+export const metadata = {
+  title: 'Ariane',
+  alternates: {
+    canonical: '/projects/ariane',
+  },
+};
+
+# Ariane
+
+<Tags items={["Graph Theory", "Generative AI", "Narrative Systems"]} />
+
+<GitHubLink href="https://github.com/jkloers/ariane" />
+
+## The Premise
+
+A novel, at its most fundamental, could be thought of as the complete explanation of a single moment in time. To fully express even a fleeting instant of existence, you are forced to dive backward — to climb a causality tree, exhausting every branch, recursively reconstructing the chain of events that converged on this one point.
+
+The present is not a beginning. It is the culmination of an extraordinary combinatorial explosion of possibilities, collapsing into one precise instant.
+
+Consider the sentence: *"The taste of strawberries always reminded her of the old chalet."* To understand it fully, you must ask where the chalet was, who brought her there, what happened that summer. Every answer opens three more questions. The tree widens endlessly into the past, but converges sharply at the moment facing you.
+
+This structure is not entirely unfamiliar. It echoes the rhizomatic frameworks of Gilles Deleuze — a network with no fixed root, no privileged center — or the torrential streams of consciousness in James Joyce, where a single word becomes a doorway into an infinite interior. Ariane is a programmatic attempt to inhabit that structure.
+
+## The Architecture
+
+Users encounter a single sentence. Each word is clickable. Clicking a word descends into the history of that element — the people, places, objects, and memories that explain its presence in the story. The result is a graph that branches endlessly backward while remaining anchored to the present.
+
+The interface initially presents a frozen, pre-written tree: a fixed past, already determined. But the system contains a precise tipping point. When a user clicks into an unexplored node, it leaves the pre-written path and calls the Mistral API (via `llm_utils.py`) to generate a new narrative branch on the fly. At that exact moment, the story ceases to explore what was and begins forging what becomes — permanently committing each new choice into `narrative_oriented_tree.json`, irreversibly.
+
+It is a poetic mechanic encoded in an architecture: the shift from reading history to writing the present.
+
+<RhizomeCanvas />

@@ -1,0 +1,40 @@
+export const metadata = {
+  title: 'Generative Structures with CVAE',
+  alternates: {
+    canonical: '/projects/cvae-lca',
+  },
+};
+
+# CVAE + LCA
+
+<Tags items={["Deep Learning", "Navier Lab", "Generative Modeling", "Sustainability"]} />
+
+<GitHubLink href="https://github.com/maximepollet27/Projet3A-GCDAT" />
+
+## The Problem
+
+The construction sector is one of the largest contributors to global emissions, yet early-stage design still relies mostly on intuition and experience. Life Cycle Assessment — the rigorous accounting of a building's environmental impact from material extraction to demolition — is computationally expensive and arrives too late in the process to meaningfully shape form. My goal was to reframe sustainable form-finding strictly as a machine learning challenge: embed the full cost of a design decision into the generative process itself.
+
+## The Approach
+
+The project has two distinct phases, corresponding to the forward and inverse problems.
+
+**Surrogate modeling.** I first trained a Multilayer Perceptron on a dataset of over 90,000 parametrically generated buildings to predict eight LCA indicators — embodied carbon, energy use, water consumption, and others — directly from geometric and material parameters. This surrogate bypasses costly physical simulation entirely, making real-time evaluation tractable.
+
+<ProjectImage src="/projects/cvae-lca/pipeline.jpg" caption="The overall pipeline — Conditional Variational Autoencoder for structural design with environmental constraints" />
+
+**Inverse design.** With the forward problem solved, I tackled the harder question: given a set of environmental constraints, what geometries satisfy them? I trained a Conditional Variational Autoencoder conditioned on those eight indicators simultaneously. The model is trained by maximizing the evidence lower bound:
+
+<BlockMath math="\mathcal{L}(\theta, \phi;\, \mathbf{x}, \mathbf{c}) = \mathbb{E}_{q_\phi(\mathbf{z}|\mathbf{x},\mathbf{c})}\!\left[\log p_\theta(\mathbf{x}|\mathbf{z},\mathbf{c})\right] - D_\mathrm{KL}\!\left(q_\phi(\mathbf{z}|\mathbf{x},\mathbf{c})\;\|\;p(\mathbf{z})\right)" />
+
+where <InlineMath math="\mathbf{x}" /> is the structural configuration, <InlineMath math="\mathbf{c} \in \mathbb{R}^8" /> is the environmental condition vector, and <InlineMath math="\mathbf{z}" /> is the latent variable. Rather than optimizing toward a single objective, the CVAE learns to propose *diverse* structural configurations that live within a specified environmental envelope — a generative model for the feasible set.
+
+## Evaluation
+
+Because no single design is optimal across all eight dimensions simultaneously, performance is evaluated on the Pareto front: the set of configurations for which no indicator can be improved without degrading another. The quality of the generative model is then measured by the hypervolume indicator <InlineMath math="\mathcal{H}" />, which captures the volume of objective space dominated by the front:
+
+<BlockMath math="\mathcal{H}(F, \mathbf{r}) = \lambda\!\left(\bigcup_{\mathbf{f} \in F} [\mathbf{f},\, \mathbf{r}]\right)" />
+
+where <InlineMath math="F" /> is the Pareto front, <InlineMath math="\mathbf{r}" /> is a reference point, and <InlineMath math="\lambda" /> denotes the Lebesgue measure. A higher hypervolume means the model covers more of the achievable trade-off surface.
+
+Exploring the latent space reveals the continuous topological transitions between material choices, structural geometries, and environmental profiles — making trade-offs legible and navigable. The result is an interactive, data-driven tool that gives designers direct access to the sustainable region of the design space, at the moment when it still matters.
