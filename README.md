@@ -1,29 +1,33 @@
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fleerob%2Fnext-mdx-blog)
+# julienkloers.com
 
-# next-mdx-blog
+Personal portfolio of Julien Kloers — engineer and researcher at the intersection of machine learning, physical simulation, and generative design.
 
-This is a blog template built with:
+Built with:
 
-- **Framework**: [Next.js](https://nextjs.org)
-- **Deployment**: [Vercel](https://vercel.com)
+- **Framework**: [Next.js](https://nextjs.org) 16
+- **Deployment**: [Vercel](https://vercel.com) — [julienkloers.com](https://julienkloers.com)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com)
+- **Content**: MDX
+- **Math**: [KaTeX](https://katex.org)
 - **Analytics**: [Vercel Analytics](https://vercel.com/analytics)
-- **Database** (Optional): [Postgres](https://vercel.com/postgres)
 
 ## Running Locally
 
-This application requires Node.js v18.17+.
-
 ```bash
-git clone https://github.com/leerob/next-mdx-blog.git
-cd next-mdx-blog
+git clone https://github.com/jkloers/portfolio.git
+cd portfolio
 pnpm install
 pnpm dev
 ```
 
-## Database (Optional)
+## Environment Variables
 
-Create a `.env.local` file with your `POSTGRES_URL` environment variable to store redirects.
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SITE_URL` | Production URL for sitemap and metadata (default: `https://julienkloers.vercel.app`) |
+| `POSTGRES_URL` | Optional — Postgres connection string for dynamic redirects |
+
+If using `POSTGRES_URL`, create the following table:
 
 ```sql
 CREATE TABLE redirects (
