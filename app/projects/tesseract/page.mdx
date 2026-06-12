@@ -1,0 +1,114 @@
+export const metadata = {
+  title: 'Tesseract',
+  alternates: {
+    canonical: '/projects/tesseract',
+  },
+};
+
+# Tesseract
+
+<Tags items={["SOFA", "Tesseract", "FEM", "Differentiable Physics", "Kirigami"]} />
+
+<GitHubLink href="https://github.com/jkloers/neural-form-finding" />
+
+_A non-differentiable finite-element solver, wrapped in Tesseract, lets our kirigami pipeline stop guessing the physics of its own hinges._
+
+While origami relies solely on folding, kirigami extends the concept by introducing cuts into the flat sheet. This ancient Japanese technique has evolved into a wide class of mechanical metamaterials where the layout of rigid panels and hinge networks entirely dictates the final geometric and physical behavior.
+
+To bridge the gap between idealized kinematics and real-world fabrication, we introduce a [physics-informed form-finding pipeline](https://github.com/jkloers/neural-form-finding).
+
+## I — Fast Geometry, Naive Physics
+
+The pipeline designs kirigami the way you'd hope: by gradient descent, on a deliberately compact representation. Each face is a rigid body with three degrees of freedom, each hinge a handful of springs (<InlineMath math="k_\theta,\ k_\text{stretch},\ k_\text{shear}" />) — three differentiable stages map network weights to a folded shape:
+
+- **Stage 0 — Mapping:** a learned conformal map displaces and resizes the tiles.
+- **Stage 1 — Validity:** a differentiable projection enforces the geometric constraints.
+- **Stage 2 — Physics:** incremental load-stepping relaxes the cell to equilibrium.
+
+We score the result against a target shape, and `jax.value_and_grad` carries the gradient back through all three stages — energy minimization included — to update the network. This works well.
+
+<figure className="my-8">
+  <img src="/projects/tesseract/training_tess.gif" alt="Training the JAX pipeline — Stage 2 output" style={{ width: '100%', height: 'auto' }} />
+  <figcaption className="text-xs text-gray-400 dark:text-zinc-600 mt-3 tracking-wide">
+    Figure 1 — The output of Stage 2 (after the physical simulation has been applied). The optimization landscape is tightly constrained by the geometric rules that enforce a valid kirigami mechanism. The gradient spikes come from a near-diverging Stage 2 solver (faces beginning to intersect), whose large equilibrium sensitivities are backpropagated through the implicit function theorem.
+  </figcaption>
+</figure>
+
+**Our sim-to-real gap.** The whole edifice rests on one assumption, and it sits on the only component that does any real work — the hinge. Each hinge is a reduced-order energy model with no geometry:
+
+<BlockMath math="U_\text{hinge} = \tfrac{1}{2}k_\text{stretch}\,\delta_n^2 + \tfrac{1}{2}k_\text{shear}\,\delta_t^2 + \tfrac{1}{2}k_\text{rot}\,\Delta\theta^2" />
+
+— three spring constants we picked by hand. Before this tessellation can ever be 3D-printed, those hinges must be designed, and their design feeds back into the physics of the whole cell. It's a loop, and right now it's open.
+
+## II — Wrapping the FEM Oracle
+
+The real mechanics live in a continuum FEM solver. Hand [SOFA](https://github.com/sofa-framework/sofa) the true 3D hinge and it returns the true stress, strain, and energy. It is made for soft robotics — ideal for kirigami simulation.
+
+Problem solved? No — SOFA is everything our pipeline is not: slow, a black box with no gradients, and living in a runtime you cannot drop into a `value_and_grad` call.
+
+<figure className="my-8">
+  <img src="/projects/tesseract/pipeline.jpeg" alt="The global pipeline of the project" style={{ width: '100%', height: 'auto' }} />
+  <figcaption className="text-xs text-gray-400 dark:text-zinc-600 mt-3 tracking-wide">
+    Figure 2 — The global pipeline of this project. SOFA models the physical interactions between the tiles of a valid kirigami (hinge design).
+  </figcaption>
+</figure>
+
+**Tesseract** supplies the one missing piece. `/apply` runs SOFA; `/jacobian` returns ∂(outputs)/∂(inputs) by central finite differences, server-side. Wrap those two calls and the black box becomes a differentiable function — one that could occupy the _exact_ slot Stage 2 holds today, composing with `value_and_grad` without changing how the rest of the pipeline takes gradients.
+
+```python
+# The differentiable design loop: client → oracle → gradient step
+# sofa/hinge_optimizer.py  (all via nff/sofa/tesseract_client.py as `tc`)
+
+params = initial_bezier_params()
+for epoch in range(n_epochs):
+    payload = tc.build_payload(cs, params)        # → InputSchema dict
+    out = tc.apply(url, payload)                  # POST /apply   (1 SOFA solve)
+    jac = tc.jacobian(url, payload, "smooth_principal_strain")  # POST /jacobian
+
+    eps_p = max(0.0, out.strain - yield_strain)   # only plastic strain fatigues
+    loss = w_fatigue * eps_p + w_mat * hinge_area(params) + w_gap * gap**2
+    params = adam_step(params, grad_of(loss, jac))  # reshape the hinge
+```
+
+A finite-difference Jacobian costs `2·n_inputs` SOFA solves per step — too slow to call inside every macro training step at full-tessellation scale. So we split the labor:
+
+- **JAX owns the macrogeometry** (layout, fold target);
+- **SOFA owns the microgeometry** (each hinge's cross-section, hence its stiffness and failure limit).
+
+The whole game becomes: _how does the micro-loop talk to the macro-loop?_
+
+## III — Micro-Optimization & Non-Linear Reality
+
+At the hinge scale, the oracle is cheap enough to put directly in the loop. We parameterize the flexure as nine Bézier variables; `build_mesh_gmsh` turns them (plus the cell shape from Stage 1) into a conforming tetrahedral mesh — two faces pushed apart by a learnable gap, the hinge drawn as quadratic Bézier arcs whose endpoints slide along the face edges. SOFA folds it to equilibrium and returns elastic energy, peak stress, and peak strain — and, on request, their gradients.
+
+A compact Adam loop reshapes the nine parameters to maximize Coffin–Manson fatigue life (minimize plastic strain), penalized for excess material and gap.
+
+<figure className="my-8">
+  <img src="/projects/tesseract/training_hinge.gif" alt="Learning the Bézier hinge" style={{ width: '100%', height: 'auto' }} />
+  <figcaption className="text-xs text-gray-400 dark:text-zinc-600 mt-3 tracking-wide">
+    Figure 3 — The hinge is the thin strip of material spanning the gap, its outline drawn with two quadratic Bézier arcs (upper and lower). The gradient landscape is bumpy because we differentiate a max-over-elements quantity (the single hottest tet's strain) by finite differences through a black-box solver: tiny design changes flip which element is hottest.
+  </figcaption>
+</figure>
+
+This micro-optimization yielded two breakthroughs:
+
+**1 — We can now sculpt a hinge's cross-section to an elasto-plastic goal with full 3D FEM.** The headline design is a TPU flexure that folds a full 90° while holding peak strain to **15.4%** — safely inside the trustworthy range — for **~2,000 fold cycles**.
+
+**2 — We measured the hinge's true spring law.** Straight from SOFA energy: <InlineMath math="k_\text{stretch} \approx 8{,}500\ \text{N/m}" /> and <InlineMath math="k_\text{shear} \approx 905\ \text{N/m}" /> (a clean 1 : 9.4 ratio). And here is the twist: **stretch and shear are honest linear springs, but rotation is not** — its energy grows like <InlineMath math="\theta^3" />, its stiffness rising fivefold over the first few degrees. The fast model is faithful in two degrees of freedom and (with this hinge design, at least) _structurally wrong in the third_. That single measurement tells us exactly what to fix.
+
+<figure className="my-8">
+  <img src="/projects/tesseract/closing.gif" alt="The optimal hinge closing" style={{ width: '100%', height: 'auto' }} />
+  <figcaption className="text-xs text-gray-400 dark:text-zinc-600 mt-3 tracking-wide">
+    Figure 4 — The optimizer converges on a slender, concave hourglass flexure whose pinched waist lets the bending spread along the arc rather than concentrate at the corner. The peak strain stays just at the edge of the elastic limit, accumulating only a small amount of plastic (permanent) strain per fold — which is what gives it a long fatigue life.
+  </figcaption>
+</figure>
+
+## IV — Towards Full Co-Design
+
+Currently, the macro (JAX) and micro (SOFA) pipelines run side by side. In the coming weeks, the goal is to fuse them. While per-hinge co-design is a viable intermediate step, the true prize is a **differentiable surrogate model**.
+
+By training a fast, lightweight neural model on high-fidelity SOFA data — mapping `(loading, shape)` to `(energy, stiffness, strain, cycle lifespan)` — we could replace the linear-spring approximations entirely. This unlocks training the hinge's micro-geometry directly inside the main generative pipeline, at JAX speeds.
+
+It also unlocks heterogeneous co-design: individually optimizing the energy landscape of every hinge in the tessellation based on the precise local physics of the target deployment.
+
+**Looking forward.** To make this more robust, future work will integrate hyperelastic material laws (Stable Neo-Hookean / TPU) to lift the current strain ceilings, and capture closure self-contact and out-of-plane buckling.

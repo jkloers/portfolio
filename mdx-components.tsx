@@ -21,6 +21,11 @@ const PROJECTS = [
     desc: 'Differentiable physics & metamaterials.'
   },
   {
+    title: 'Tesseract',
+    href: '/projects/tesseract',
+    desc: 'Injecting true physics into generative design via a differentiable FEM oracle.'
+  },
+  {
     title: 'Mocap',
     href: '/projects/mocap',
     desc: 'Modular synthesis driven by human kinematics.'
